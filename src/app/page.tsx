@@ -26,7 +26,10 @@ import {
   MenuItem,
   SelectChangeEvent,
   Collapse,
-  IconButton
+  IconButton,
+  TextField,
+  InputAdornment,
+  Skeleton
 } from '@mui/material'
 import {
   TrendingUp,
@@ -38,7 +41,8 @@ import {
   BarChart,
   Receipt,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Search
 } from '@mui/icons-material'
 import Header from '../components/Header'
 import InitialSetup from '../components/InitialSetup'
@@ -97,13 +101,14 @@ export default function HomePage() {
   const [estadisticas, setEstadisticas] = useState<EstadisticasVentas | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mesSeleccionado, setMesSeleccionado] = useState<number>(new Date().getMonth() + 1)
- const [anioSeleccionado, setAnioSeleccionado] = useState<number>(new Date().getFullYear())
+  const [mesSeleccionado, setMesSeleccionado] = useState<number>(0)
+  const [anioSeleccionado, setAnioSeleccionado] = useState<number>(new Date().getFullYear())
+  const [clienteSearch, setClienteSearch] = useState('')
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [clienteExpandido, setClienteExpandido] = useState<number | null>(null)
   const { config, isConfigured, loading: configLoading, saveConfig } = useConfig()
 
-  const cargarEstadisticas = async (mes: number, anio: number) => {
+  const cargarEstadisticas = async (mes: number, anio: number, search: string = '') => {
     try {
       setLoading(true)
       setError(null)
@@ -111,7 +116,8 @@ export default function HomePage() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
       
-      const response = await fetch(`/api/estadisticas-ventas?mes=${mes}&anio=${anio}`, {
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
+      const response = await fetch(`/api/estadisticas-ventas?mes=${mes}&anio=${anio}${searchParam}`, {
         signal: controller.signal
       })
       
@@ -139,36 +145,35 @@ export default function HomePage() {
   useEffect(() => {
     let isMounted = true
     
-    const loadData = async () => {
-      if (isMounted) {
-        await cargarEstadisticas(mesSeleccionado, anioSeleccionado)
-      }
+    // Si cambia mes o año, cargamos datos (incluyendo la búsqueda actual si existe)
+    if (isMounted) {
+      cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
     }
-    
-    loadData()
     
     return () => {
       isMounted = false
     }
   }, [mesSeleccionado, anioSeleccionado])
 
+  const handleSearch = () => {
+    cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
+  }
+
   const handleMesChange = (event: SelectChangeEvent<number>) => {
     const nuevoMes = event.target.value as number
     setMesSeleccionado(nuevoMes)
-    cargarEstadisticas(nuevoMes, anioSeleccionado)
   }
 
   const handleAnioChange = (event: SelectChangeEvent<number>) => {
     const nuevoAnio = event.target.value as number
     setAnioSeleccionado(nuevoAnio)
-    cargarEstadisticas(mesSeleccionado, nuevoAnio)
   }
 
   const handleConfigSave = async (newConfig: DatabaseConfig) => {
     try {
       await saveConfig(newConfig)
       // Después de guardar la configuración, cargar las estadísticas
-      cargarEstadisticas(mesSeleccionado, anioSeleccionado)
+      cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
     } catch (error) {
       console.error('Error al guardar la configuración:', error)
     }
@@ -179,7 +184,7 @@ export default function HomePage() {
       await saveConfig(newConfig)
       setConfigModalOpen(false)
       // Recargar las estadísticas con la nueva configuración
-      cargarEstadisticas(mesSeleccionado, anioSeleccionado)
+      cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
     } catch (error) {
       console.error('Error al guardar la configuración:', error)
     }
@@ -221,26 +226,7 @@ export default function HomePage() {
     return <InitialSetup onConfigSaved={handleConfigSave} />
   }
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress size={60} />
-      </Box>
-    )
-  }
 
-  if (error) {
-    return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
-        <Header title="Dashboard de Ventas" />
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-          <Alert severity="error">
-            Error al cargar las estadísticas: {error}
-          </Alert>
-        </Container>
-      </Box>
-    )
-  }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
@@ -258,26 +244,11 @@ export default function HomePage() {
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
             <CalendarToday sx={{ fontSize: 20 }} />
-            {estadisticas ? `${meses[estadisticas.mes - 1]} ${estadisticas.anio}` : 'Cargando...'}
+            {estadisticas ? `${estadisticas.mes === 0 ? 'Todos los meses' : meses[estadisticas.mes - 1]} ${estadisticas.anio}` : 'Cargando...'}
           </Typography>
           
           {/* Selectores de Mes y Año */}
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Mes</InputLabel>
-              <Select
-                value={mesSeleccionado}
-                label="Mes"
-                onChange={handleMesChange}
-              >
-                {meses.map((mes, index) => (
-                  <MenuItem key={index + 1} value={index + 1}>
-                    {mes}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel>Año</InputLabel>
               <Select
@@ -292,7 +263,23 @@ export default function HomePage() {
                 ))}
               </Select>
             </FormControl>
-            
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Mes</InputLabel>
+              <Select
+                value={mesSeleccionado}
+                label="Mes"
+                onChange={handleMesChange}
+              >
+                <MenuItem value={0}>
+                  <em>Todos</em>
+                </MenuItem>
+                {meses.map((mes, index) => (
+                  <MenuItem key={index + 1} value={index + 1}>
+                    {mes}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>            
             <Typography variant="body2" color="text.secondary">
               Selecciona el período para ver las estadísticas
             </Typography>
@@ -314,7 +301,47 @@ export default function HomePage() {
           </Button>
         </Box>
 
-        {estadisticas && (
+        {loading ? (
+          <Grid container spacing={3}>
+            {/* Skeletons for Cards */}
+            {[1, 2, 3, 4].map((item) => (
+              <Grid item xs={12} md={3} key={item}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Skeleton variant="circular" width={40} height={40} />
+                    </Box>
+                    <Skeleton variant="text" sx={{ fontSize: '2rem', mx: 'auto', mb: 1 }} width="60%" />
+                    <Skeleton variant="text" sx={{ fontSize: '1rem', mx: 'auto', mb: 1 }} width="80%" />
+                    <Skeleton variant="rounded" width={60} height={24} sx={{ mx: 'auto' }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+
+            {/* Skeletons for Tables */}
+            {[1, 2].map((item) => (
+              <Grid item xs={12} key={`table-${item}`}>
+                <Card>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Skeleton variant="circular" width={24} height={24} />
+                        <Skeleton variant="text" width={200} height={32} />
+                      </Box>
+                      {item === 2 && <Skeleton variant="rectangular" width={250} height={40} sx={{ borderRadius: 1 }} />}
+                    </Box>
+                    <Skeleton variant="rectangular" width="100%" height={400} sx={{ borderRadius: 1 }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        ) : error ? (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            Error al cargar las estadísticas: {error}
+          </Alert>
+        ) : estadisticas && (
           <Grid container spacing={3}>
             {/* Tarjetas de resumen */}
             <Grid item xs={12} md={3}>
@@ -323,14 +350,14 @@ export default function HomePage() {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
                       <TrendingUp sx={{ fontSize: 24, mr: 1, opacity: 0.9 }} />
                       <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
-                        Total Ventas Mensuales
+                        {mesSeleccionado === 0 ? 'Total Ventas Anuales' : 'Total Ventas Mensuales'}
                       </Typography>
                     </Box>
                     <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
                       {formatQuantity(estadisticas.resumenVentas.TotalVentas)}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                      Facturas emitidas este mes
+                      {mesSeleccionado === 0 ? 'Facturas emitidas este año' : 'Facturas emitidas este mes'}
                     </Typography>
                     <Chip 
                       label="Unidades" 
@@ -435,7 +462,10 @@ export default function HomePage() {
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ color: syndeoColors.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Inventory sx={{ mr: 1 }} />
-                    Artículos Más Vendidos del Mes
+                    {mesSeleccionado === 0 
+                      ? `Artículos Más Vendidos del ${anioSeleccionado}`
+                      : `Artículos Más Vendidos del Mes de ${meses[mesSeleccionado - 1]}`
+                    }
                   </Typography>
                   {estadisticas.articulosMasVendidos.length > 0 ? (
                     <TableContainer component={Paper} variant="outlined">
@@ -500,7 +530,10 @@ export default function HomePage() {
                     </TableContainer>
                   ) : (
                     <Alert severity="info">
-                      No hay datos de artículos vendidos para este mes.
+                      {mesSeleccionado === 0 
+                        ? 'No hay datos de artículos vendidos para este año.'
+                        : 'No hay datos de artículos vendidos para este mes.'
+                      }
                     </Alert>
                   )}
                 </CardContent>
@@ -511,10 +544,36 @@ export default function HomePage() {
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ color: syndeoColors.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <People sx={{ mr: 1 }} />
-                    Top 15 Clientes por Facturación del Mes
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                    <Typography variant="h6" sx={{ color: syndeoColors.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <People sx={{ mr: 1 }} />
+                      {mesSeleccionado === 0 
+                        ? `Top 15 Clientes por Facturación del ${anioSeleccionado}`
+                        : `Top 15 Clientes por Facturación del Mes de ${meses[mesSeleccionado - 1]}`
+                      }
+                    </Typography>
+                    <TextField
+                      size="small"
+                      placeholder="Buscar cliente..."
+                      value={clienteSearch}
+                      onChange={(e) => setClienteSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearch()
+                        }
+                      }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={handleSearch} edge="end">
+                              <Search />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ width: { xs: '100%', sm: 250 } }}
+                    />
+                  </Box>
                   {estadisticas.clientesRanking && estadisticas.clientesRanking.length > 0 ? (
                     <TableContainer component={Paper} variant="outlined">
                       <Table size="small">
@@ -665,7 +724,10 @@ export default function HomePage() {
                     </TableContainer>
                   ) : (
                     <Alert severity="info">
-                      No hay datos de clientes para este mes.
+                      {mesSeleccionado === 0 
+                        ? 'No hay datos de clientes para este año.'
+                        : 'No hay datos de clientes para este mes.'
+                      }
                     </Alert>
                   )}
                 </CardContent>

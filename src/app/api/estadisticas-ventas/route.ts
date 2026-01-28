@@ -16,11 +16,12 @@ export async function GET(request: NextRequest) {
     const currentDate = new Date()
     const currentMonth = parseInt(searchParams.get('mes') || (currentDate.getMonth() + 1).toString())
     const currentYear = parseInt(searchParams.get('anio') || currentDate.getFullYear().toString())
+    const search = searchParams.get('search') || ''
     
     // Validar parámetros
-    if (currentMonth < 1 || currentMonth > 12) {
+    if (currentMonth < 0 || currentMonth > 12) {
       return NextResponse.json(
-        { error: 'El mes debe estar entre 1 y 12' },
+        { error: 'El mes debe estar entre 0 y 12 (0 para todos los meses)' },
         { status: 400 }
       )
     }
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
         AVG(CASE WHEN ISNULL(vc.CVeSigno, 1) > 0 THEN ISNULL(vf.FaTotal, 0) END) as PromedioVenta
       FROM VEN_FACTUR vf
       LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
-      WHERE MONTH(vf.FaFecha) = @mes 
+      WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
         AND YEAR(vf.FaFecha) = @anio
     `
 
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
         AND vf.CVeNroId = vf1.CVeNroId
       LEFT JOIN ART_ARTICU art ON vf1.ArtNroId = art.ArtNroId
       LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
-      WHERE MONTH(vf.FaFecha) = @mes 
+      WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
         AND YEAR(vf.FaFecha) = @anio
         AND vf1.DeCanti > 0
       GROUP BY art.ArtDescr, art.ArtCodigo
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
         SUM(ISNULL(vf.FaTotal, 0) * ISNULL(vc.CVeSigno, 1)) as TotalDia
       FROM VEN_FACTUR vf
       LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
-      WHERE MONTH(vf.FaFecha) = @mes 
+      WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
         AND YEAR(vf.FaFecha) = @anio
       GROUP BY DAY(vf.FaFecha)
       ORDER BY DAY(vf.FaFecha)
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) OVER (PARTITION BY vf.CliNroId) as RegistrosPorCliente
       FROM VEN_FACTUR vf
       LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
-      WHERE MONTH(vf.FaFecha) = @mes 
+      WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
         AND YEAR(vf.FaFecha) = @anio
         AND UPPER(LTRIM(RTRIM(ISNULL(vf.FaNombr, '')))) LIKE '%SUPERMAT%'
       ORDER BY vf.CliNroId, vf.FaFecha
@@ -161,10 +162,11 @@ export async function GET(request: NextRequest) {
           MAX(UPPER(LTRIM(RTRIM(ISNULL(vf.FaNombr, ''))))) as NombreCliente
         FROM VEN_FACTUR vf
         LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
-        WHERE MONTH(vf.FaFecha) = @mes 
+        WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
           AND YEAR(vf.FaFecha) = @anio
           AND vf.CliNroId IS NOT NULL
           AND ISNULL(LTRIM(RTRIM(vf.FaNombr)), '') != ''
+          AND (@search = '' OR vf.FaNombr LIKE @search)
         GROUP BY vf.CliNroId
         HAVING SUM(ISNULL(vf.FaNetGr, 0) * ISNULL(vc.CVeSigno, 1)) > 0
       ),
@@ -189,6 +191,7 @@ export async function GET(request: NextRequest) {
     const clientesRankingResult = await pool.request()
       .input('mes', currentMonth)
       .input('anio', currentYear)
+      .input('search', search ? `%${search}%` : '')
       .query(clientesRankingQuery)
 
     // Ejecutar diagnóstico de SUPERMAT para debugging
@@ -214,7 +217,7 @@ export async function GET(request: NextRequest) {
       INNER JOIN VEN_FACTUR1 vf1 ON vf.FaNroF1 = vf1.FaNroF1 AND vf.FaNroF2 = vf1.FaNroF2 AND vf1.FaTipFa = vf.FaTipFa AND vf.CVeNroId = vf1.CVeNroId
       LEFT JOIN VEN_CODVTA vc ON vf.CVeNroId = vc.CVeNroId
       LEFT JOIN ART_ARTICU art ON vf1.ArtNroId = art.ArtNroId
-      WHERE MONTH(vf.FaFecha) = @mes 
+      WHERE (@mes = 0 OR MONTH(vf.FaFecha) = @mes)
         AND YEAR(vf.FaFecha) = @anio
         AND vf.CliNroId IS NOT NULL
         AND ISNULL(RTRIM(vf.FaNombr), '') != ''
@@ -222,10 +225,11 @@ export async function GET(request: NextRequest) {
           SELECT TOP 15 vf2.CliNroId
           FROM VEN_FACTUR vf2
           LEFT JOIN VEN_CODVTA vc2 ON vf2.CVeNroId = vc2.CVeNroId
-          WHERE MONTH(vf2.FaFecha) = @mes 
+          WHERE (@mes = 0 OR MONTH(vf2.FaFecha) = @mes)
             AND YEAR(vf2.FaFecha) = @anio
             AND vf2.CliNroId IS NOT NULL
             AND ISNULL(RTRIM(vf2.FaNombr), '') != ''
+            AND (@search = '' OR vf2.FaNombr LIKE @search)
           GROUP BY vf2.CliNroId
           HAVING SUM(ISNULL(vf2.FaTotal, 0) * ISNULL(vc2.CVeSigno, 1)) > 0
           ORDER BY SUM(ISNULL(vf2.FaTotal, 0) * ISNULL(vc2.CVeSigno, 1)) DESC
@@ -241,6 +245,7 @@ export async function GET(request: NextRequest) {
     const productosClientesResult = await pool.request()
       .input('mes', currentMonth)
       .input('anio', currentYear)
+      .input('search', search ? `%${search}%` : '')
       .query(productosClientesQuery)
 
     // Agrupar productos por cliente
