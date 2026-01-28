@@ -11,7 +11,6 @@ import {
   Grid,
   Chip,
   Alert,
-  CircularProgress,
   Table,
   TableBody,
   TableCell,
@@ -45,11 +44,7 @@ import {
   Search
 } from '@mui/icons-material'
 import Header from '../components/Header'
-import InitialSetup from '../components/InitialSetup'
-import ConfigModal from '../components/ConfigModal'
 import { syndeoColors } from '../theme/colors'
-import { useConfig } from '../hooks/useConfig'
-import { DatabaseConfig } from '../lib/configStorage'
 import { formatCurrencyARS, formatQuantity } from '../lib/formatters'
 
 interface EstadisticasVentas {
@@ -104,9 +99,7 @@ export default function HomePage() {
   const [mesSeleccionado, setMesSeleccionado] = useState<number>(0)
   const [anioSeleccionado, setAnioSeleccionado] = useState<number>(new Date().getFullYear())
   const [clienteSearch, setClienteSearch] = useState('')
-  const [configModalOpen, setConfigModalOpen] = useState(false)
   const [clienteExpandido, setClienteExpandido] = useState<number | null>(null)
-  const { config, isConfigured, loading: configLoading, saveConfig } = useConfig()
 
   const cargarEstadisticas = async (mes: number, anio: number, search: string = '') => {
     try {
@@ -169,27 +162,6 @@ export default function HomePage() {
     setAnioSeleccionado(nuevoAnio)
   }
 
-  const handleConfigSave = async (newConfig: DatabaseConfig) => {
-    try {
-      await saveConfig(newConfig)
-      // Después de guardar la configuración, cargar las estadísticas
-      cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
-    } catch (error) {
-      console.error('Error al guardar la configuración:', error)
-    }
-  }
-
-  const handleConfigModalSave = async (newConfig: DatabaseConfig) => {
-    try {
-      await saveConfig(newConfig)
-      setConfigModalOpen(false)
-      // Recargar las estadísticas con la nueva configuración
-      cargarEstadisticas(mesSeleccionado, anioSeleccionado, clienteSearch)
-    } catch (error) {
-      console.error('Error al guardar la configuración:', error)
-    }
-  }
-
   const toggleClienteExpansion = (clienteId: number) => {
     if (clienteExpandido === clienteId) {
       // Si el cliente ya está expandido, lo contraemos
@@ -204,36 +176,10 @@ export default function HomePage() {
     router.push(`/cliente/${clienteId}`)
   }
 
-  const handleOpenConfigModal = () => {
-    setConfigModalOpen(true)
-  }
-
-  const handleCloseConfigModal = () => {
-    setConfigModalOpen(false)
-  }
-
-  // Si está cargando la configuración, mostrar loading
-  if (configLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
-      </Box>
-    )
-  }
-
-  // Si no hay configuración, mostrar el setup inicial
-  if (!isConfigured) {
-    return <InitialSetup onConfigSaved={handleConfigSave} />
-  }
-
-
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
       <Header 
         title="Dashboard de Ventas" 
-        showConfigButton={true}
-        onConfigClick={handleOpenConfigModal}
       />
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Header */}
@@ -736,13 +682,6 @@ export default function HomePage() {
           </Grid>
         )}
       </Container>
-      
-      {/* Modal de configuración */}
-      <ConfigModal
-        open={configModalOpen}
-        onClose={handleCloseConfigModal}
-        onConfigSave={handleConfigModalSave}
-      />
     </Box>
   )
 }
