@@ -41,11 +41,13 @@ import {
   Receipt,
   ExpandMore,
   ExpandLess,
-  Search
+  Search,
+  FileDownload
 } from '@mui/icons-material'
 import Header from '../components/Header'
 import { syndeoColors } from '../theme/colors'
 import { formatCurrencyARS, formatQuantity } from '../lib/formatters'
+import ExcelJS from 'exceljs'
 
 interface EstadisticasVentas {
   mes: number
@@ -174,6 +176,122 @@ export default function HomePage() {
 
   const navegarACliente = (clienteId: number) => {
     router.push(`/cliente/${clienteId}`)
+  }
+
+  const periodoTexto = () => {
+    return mesSeleccionado === 0
+      ? `${anioSeleccionado}`
+      : `${meses[mesSeleccionado - 1]}_${anioSeleccionado}`
+  }
+  const tituloArticulos = () => {
+    return mesSeleccionado === 0
+      ? `Artículos Más Vendidos del ${anioSeleccionado}`
+      : `Artículos Más Vendidos del Mes de ${meses[mesSeleccionado - 1]}`
+  }
+  const tituloClientes = () => {
+    return mesSeleccionado === 0
+      ? `Top 15 Clientes por Facturación del ${anioSeleccionado}`
+      : `Top 15 Clientes por Facturación del Mes de ${meses[mesSeleccionado - 1]}`
+  }
+  const suggestWidth = (header: string) => {
+    const h = header.toLowerCase()
+    if (h.includes('descripción')) return 30
+    if (h.includes('cliente')) return 28
+    if (h.includes('código')) return 12
+    if (h.includes('posición')) return 7
+    if (h.includes('cantidad')) return 14
+    if (h.includes('productos')) return 12
+    if (h.includes('precio') || h.includes('neto') || h.includes('facturado')) return 16
+    return 14
+  }
+  const computeColWidths = (headers: string[], rows: Array<Array<string | number>>) => {
+    const maxLens = headers.map(h => String(h).length)
+    rows.forEach(r => {
+      r.forEach((val, i) => {
+        const len = String(val ?? '').length
+        maxLens[i] = Math.max(maxLens[i], len)
+      })
+    })
+    return maxLens.map((len, i) => {
+      const base = suggestWidth(headers[i])
+      const computed = Math.min(Math.max(len + 2, base), 50)
+      return { wch: computed }
+    })
+  }
+  const buildSheetWithTitle = (title: string, headers: string[], rows: Array<Array<string | number>>, wb: ExcelJS.Workbook, sheetName: string) => {
+    const ws = wb.addWorksheet(sheetName)
+    ws.mergeCells(1, 1, 1, headers.length)
+    const titleCell = ws.getCell(1, 1)
+    titleCell.value = title
+    titleCell.alignment = { horizontal: 'center' }
+    titleCell.font = { bold: true, size: 14 }
+    ws.getRow(1).height = 24
+    const headerRow = ws.addRow(headers)
+    headerRow.font = { bold: true }
+    rows.forEach(r => ws.addRow(r))
+    const widths = computeColWidths(headers, rows).map(w => w.wch)
+    widths.forEach((w, i) => {
+      ws.getColumn(i + 1).width = w
+    })
+    return ws
+  }
+  const saveWorkbook = async (filename: string, wb: ExcelJS.Workbook) => {
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const exportArticulosXLSX = () => {
+    if (!estadisticas) return
+    const headers = [
+      'Posición',
+      'Código',
+      'Descripción',
+      'Precio Unitario',
+      'Cantidad Vendida',
+      'Precio Unitario NG c/Descto Ponderado',
+      'Neto Gravado c/Dto'
+    ]
+    const rows = estadisticas.articulosMasVendidos.map((a, idx) => [
+      idx + 1,
+      a.Codigo || '',
+      a.Descripcion || '',
+      a.PrecioUnitarioPonderado || 0,
+      a.CantidadVendida || 0,
+      (a.TotalNetoGravadoConDescuento || 0) / (a.CantidadVendida || 1),
+      a.TotalNetoGravadoConDescuento || 0
+    ])
+    const wb = new ExcelJS.Workbook()
+    buildSheetWithTitle(tituloArticulos(), headers, rows, wb, 'Artículos')
+    saveWorkbook(`articulos_${periodoTexto()}.xlsx`, wb)
+  }
+
+  const exportClientesXLSX = () => {
+    if (!estadisticas) return
+    const headers = [
+      'Posición',
+      'Cliente',
+      'Total Facturado NG',
+      'Cantidad Facturas',
+      'Productos'
+    ]
+    const rows = estadisticas.clientesRanking.map((c, idx) => [
+      idx + 1,
+      c.NombreCliente || '',
+      c.TotalFacturado || 0,
+      c.CantidadFacturas || 0,
+      c.productos?.length || 0
+    ])
+    const wb = new ExcelJS.Workbook()
+    buildSheetWithTitle(tituloClientes(), headers, rows, wb, 'Clientes')
+    saveWorkbook(`clientes_${periodoTexto()}.xlsx`, wb)
   }
 
   return (
@@ -406,13 +524,22 @@ export default function HomePage() {
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ color: syndeoColors.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Inventory sx={{ mr: 1 }} />
-                    {mesSeleccionado === 0 
-                      ? `Artículos Más Vendidos del ${anioSeleccionado}`
-                      : `Artículos Más Vendidos del Mes de ${meses[mesSeleccionado - 1]}`
-                    }
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                    <Typography variant="h6" sx={{ color: syndeoColors.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Inventory sx={{ mr: 1 }} />
+                      {mesSeleccionado === 0 
+                        ? `Artículos Más Vendidos del ${anioSeleccionado}`
+                        : `Artículos Más Vendidos del Mes de ${meses[mesSeleccionado - 1]}`
+                      }
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      startIcon={<FileDownload />}
+                      onClick={exportArticulosXLSX}
+                    >
+                      Exportar Excel
+                    </Button>
+                  </Box>
                   {estadisticas.articulosMasVendidos.length > 0 ? (
                     <TableContainer component={Paper} variant="outlined">
                       <Table size="small">
@@ -498,27 +625,36 @@ export default function HomePage() {
                         : `Top 15 Clientes por Facturación del Mes de ${meses[mesSeleccionado - 1]}`
                       }
                     </Typography>
-                    <TextField
-                      size="small"
-                      placeholder="Buscar cliente..."
-                      value={clienteSearch}
-                      onChange={(e) => setClienteSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSearch()
-                        }
-                      }}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton onClick={handleSearch} edge="end">
-                              <Search />
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                      sx={{ width: { xs: '100%', sm: 250 } }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <TextField
+                        size="small"
+                        placeholder="Buscar cliente..."
+                        value={clienteSearch}
+                        onChange={(e) => setClienteSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSearch()
+                          }
+                        }}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton onClick={handleSearch} edge="end">
+                                <Search />
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{ width: { xs: '100%', sm: 250 } }}
+                      />
+                      <Button
+                        variant="outlined"
+                        startIcon={<FileDownload />}
+                        onClick={exportClientesXLSX}
+                      >
+                        Exportar Excel
+                      </Button>
+                    </Box>
                   </Box>
                   {estadisticas.clientesRanking && estadisticas.clientesRanking.length > 0 ? (
                     <TableContainer component={Paper} variant="outlined">
