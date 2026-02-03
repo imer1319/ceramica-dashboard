@@ -377,7 +377,7 @@ export default function HomePage() {
     const headers = [
       "Posición",
       "Cliente",
-      "Total Facturado NG",
+      "Total Neto con dto",
       "Cantidad Facturas",
       "Productos",
     ];
@@ -961,7 +961,7 @@ export default function HomePage() {
                                 <strong>Cliente</strong>
                               </TableCell>
                               <TableCell align="right">
-                                <strong>Total Facturado NG</strong>
+                                <strong>Total Neto con dto</strong>
                               </TableCell>
                               <TableCell align="right">
                                 <strong>Cantidad Facturas</strong>

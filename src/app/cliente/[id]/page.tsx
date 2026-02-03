@@ -20,9 +20,7 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider,
   TablePagination,
-  CircularProgress,
   Button,
   Collapse,
   IconButton,
@@ -31,8 +29,6 @@ import {
   Alert,
   Breadcrumbs,
   Link,
-  TextField,
-  InputAdornment,
 } from "@mui/material";
 import {
   PersonAdd,
@@ -44,8 +40,7 @@ import {
   ArrowBack,
   Home,
   Person,
-  DateRange,
-  Clear,
+  FileDownload,
 } from "@mui/icons-material";
 import TableLoader from "../../../components/TableLoader";
 import { formatCurrencyARS, formatQuantity } from "../../../lib/formatters";
@@ -53,6 +48,7 @@ import EmptyState from "../../../components/EmptyState";
 import Header from "../../../components/Header";
 import SyndeoLoader from "../../../components/SyndeoLoader";
 import { syndeoColors } from "../../../theme/colors";
+import ExcelJS from "exceljs";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -199,11 +195,229 @@ export default function ClientePage() {
     });
   };
 
-  // Manejar cambio de filtro instantáneo
-  const handleFiltroFechaChange = (valor: string) => {
-    setFiltroFecha(valor);
+  const meses = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+
+  const periodoTexto = () => {
+    return periodoMes === 0
+      ? `${periodoAnio}`
+      : `${meses[periodoMes - 1]}_${periodoAnio}`;
   };
 
+  const tituloFacturasCliente = () => {
+    return periodoMes === 0
+      ? `Facturas del año ${periodoAnio}`
+      : `Facturas del mes de ${meses[periodoMes - 1]} ${periodoAnio}`;
+  };
+
+  const saveWorkbook = async (filename: string, wb: ExcelJS.Workbook) => {
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  type FacturaResumen = {
+    CVeNroId: number;
+    FaTipFa: string;
+    FaNroF1: number;
+    FaNroF2: number;
+    FactNumero: string;
+    FactFecha: string;
+    FactTipo: string;
+    FactTotal: number;
+    FaNetGr: number;
+    FactEstado: string;
+  };
+
+  const obtenerDetallesFacturaParaExport = async (
+    factura: FacturaResumen,
+  ): Promise<any[]> => {
+    const params = new URLSearchParams({
+      cveNroId: factura.CVeNroId.toString(),
+      faTipFa: factura.FaTipFa,
+      faNroF1: factura.FaNroF1.toString(),
+      faNroF2: factura.FaNroF2.toString(),
+    });
+    const resp = await fetch(`/api/factura/${factura.FactNumero}?${params}`);
+    const json = await resp.json();
+    return json?.data || [];
+  };
+
+  const exportarFacturasClienteXLSX = async () => {
+    const nombreCliente = datosCliente?.entidad?.Entnombr || `ID ${clienteId}`;
+    const facturasPeriodo = filtrarFacturasPorPeriodo(
+      facturas,
+      periodoMes,
+      periodoAnio,
+    ) as unknown as FacturaResumen[];
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Facturas");
+
+    const allHeaders = [
+      "Número",
+      "Fecha",
+      "Tipo",
+      "Total",
+      "Estado",
+      "Artículo",
+      "Código",
+      "Cantidad",
+      "Precio Unit.",
+      "Neto",
+      "IVA",
+      "Total",
+      "%Dto",
+      "Precio Unit. Neto c/Dto",
+      "Neto con dto",
+    ];
+
+    ws.mergeCells(1, 1, 1, allHeaders.length);
+    ws.getCell(1, 1).value = tituloFacturasCliente();
+    ws.getCell(1, 1).alignment = { horizontal: "center" };
+    ws.getCell(1, 1).font = { bold: true, size: 14 };
+
+    ws.addRow([]);
+    ws.addRow(["Cliente", nombreCliente]);
+    const clienteRow = ws.getRow(ws.lastRow.number);
+    clienteRow.getCell(2).font = { bold: true };
+    ws.addRow([]);
+
+    const totalNG = facturasPeriodo.reduce(
+      (acc, f) => acc + (Number(f.FaNetGr) || 0),
+      0,
+    );
+    const cantidadFacturas = facturasPeriodo.length;
+
+    const uniqueCodes = new Set<string>();
+    const detallesPorFactura: Record<string, any[]> = {};
+    for (const f of facturasPeriodo) {
+      const detalles = await obtenerDetallesFacturaParaExport(f);
+      detallesPorFactura[f.FactNumero] = detalles;
+      for (const d of detalles) {
+        const code =
+          (d.ArtCodigo && String(d.ArtCodigo).trim()) ||
+          (d.ArtNroId !== undefined ? String(d.ArtNroId) : "");
+        if (code) uniqueCodes.add(code);
+      }
+    }
+
+    const productosCount = uniqueCodes.size;
+    ws.addRow(["Total Neto con dto", "Facturas", "Productos"]);
+
+    ws.addRow([totalNG, cantidadFacturas, productosCount]);
+    const resumenValuesRow = ws.getRow(ws.lastRow.number);
+    resumenValuesRow.getCell(1).numFmt = "#,##0.00";
+    resumenValuesRow.getCell(2).numFmt = "#,##0";
+    resumenValuesRow.getCell(3).numFmt = "#,##0";
+    resumenValuesRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center" };
+    });
+    ws.addRow([]);
+
+    const agregarEncabezado = () => {
+      ws.addRow(allHeaders);
+      const headerRow = ws.getRow(ws.lastRow.number);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: "center" };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFEFEFEF" },
+        };
+      });
+    };
+
+    agregarEncabezado();
+
+    for (const f of facturasPeriodo) {
+      const detalles = detallesPorFactura[f.FactNumero] || [];
+      if (detalles.length === 0) {
+        ws.addRow([
+          f.FactNumero,
+          f.FactFecha ? new Date(f.FactFecha).toLocaleDateString("es-AR") : "",
+          f.FactTipo || "",
+          f.FactTotal || 0,
+          f.FactEstado || "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+      } else {
+        for (const d of detalles) {
+          const precioUnitNetoConDto =
+            (Number(d.DePreUn) || 0) * (1 - (Number(d.DePorDes) || 0) / 100);
+          const porcentaje = Number(d.DePorDes) || 0;
+          ws.addRow([
+            f.FactNumero,
+            f.FactFecha
+              ? new Date(f.FactFecha).toLocaleDateString("es-AR")
+              : "",
+            f.FactTipo || "",
+            f.FactTotal || 0,
+            f.FactEstado || "",
+            d.DeArtDescr || d.ArtDescr || "",
+            d.ArtCodigo || "",
+            d.DeCanti || 0,
+            d.DePreUn || 0,
+            d.DeNetGr || 0,
+            d.DeImIva || 0,
+            d.DeTotal || 0,
+            porcentaje / 100,
+            precioUnitNetoConDto,
+            d.NetoConDto || 0,
+          ]);
+          const row = ws.getRow(ws.lastRow.number);
+          row.getCell(4).numFmt = "#,##0.00"; // Total factura
+          row.getCell(8).numFmt = "#,##0"; // Cantidad
+          row.getCell(9).numFmt = "#,##0.00"; // Precio Unit.
+          row.getCell(10).numFmt = "#,##0.00"; // Neto
+          row.getCell(11).numFmt = "#,##0.00"; // IVA
+          row.getCell(12).numFmt = "#,##0.00"; // Total (detalle)
+          row.getCell(13).numFmt = "0.00%"; // %Dto
+          row.getCell(14).numFmt = "#,##0.00"; // Precio Unit. Neto c/Dto
+          row.getCell(15).numFmt = "#,##0.00"; // Neto con dto
+        }
+      }
+    }
+
+    const widths = [18, 12, 12, 14, 10, 30, 12, 12, 14, 14, 12, 14, 10, 18, 18];
+    widths.forEach((w, i) => {
+      ws.getColumn(i + 1).width = w;
+    });
+
+    await saveWorkbook(
+      `${nombreCliente.trim()}_${periodoTexto()}_facturas.xlsx`,
+      wb,
+    );
+  };
   // Cargar datos del cliente
   useEffect(() => {
     let isMounted = true;
@@ -849,59 +1063,39 @@ export default function ClientePage() {
         <TabPanel value={tabValue} index={3}>
           <Card variant="outlined">
             <CardContent>
-              <Typography
-                variant="h6"
-                gutterBottom
+              <Box
                 sx={{
-                  color: syndeoColors.accent.main,
+                  mb: 2,
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
+                  gap: 2,
                 }}
               >
-                <Receipt sx={{ mr: 1 }} />
-                Facturas ({totalFacturas} total)
-              </Typography>
-
-              {/* Campo de búsqueda por fecha */}
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  size="small"
-                  placeholder="Buscar por fecha (dd/mm/aaaa)"
-                  value={filtroFecha}
-                  onChange={(e) => handleFiltroFechaChange(e.target.value)}
-                  inputProps={{
-                    maxLength: 10,
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{
+                    color: syndeoColors.accent.main,
+                    display: "flex",
+                    alignItems: "center",
                   }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <DateRange sx={{ color: "action.active" }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: filtroFecha && (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleFiltroFechaChange("")}
-                          edge="end"
-                        >
-                          <Clear />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
+                >
+                  <Receipt sx={{ mr: 1 }} />
+                  Facturas ({totalFacturas} total)
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<FileDownload />}
+                  onClick={exportarFacturasClienteXLSX}
+                  sx={{
+                    bgcolor: syndeoColors.primary.main,
+                    "&:hover": { bgcolor: syndeoColors.primary.dark },
                   }}
-                  sx={{ minWidth: 250 }}
-                />
-                {filtroFecha && (
-                  <Typography
-                    variant="caption"
-                    sx={{ ml: 1, color: "text.secondary" }}
-                  >
-                    {facturasFiltradas.length} de {totalFacturas} facturas
-                  </Typography>
-                )}
+                >
+                  Exportar Excel
+                </Button>
               </Box>
-
               {facturas.length > 0 ? (
                 <>
                   <TableContainer
