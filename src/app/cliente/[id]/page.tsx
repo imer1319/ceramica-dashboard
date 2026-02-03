@@ -276,15 +276,12 @@ export default function ClientePage() {
       "Número",
       "Fecha",
       "Tipo",
-      "Total",
+      "Total FAC c/IVA",
       "Estado",
       "Artículo",
       "Código",
       "Cantidad",
       "Precio Unit.",
-      "Neto",
-      "IVA",
-      "Total",
       "%Dto",
       "Precio Unit. Neto c/Dto",
       "Neto con dto",
@@ -366,9 +363,6 @@ export default function ClientePage() {
           "",
           "",
           "",
-          "",
-          "",
-          "",
         ]);
       } else {
         for (const d of detalles) {
@@ -387,9 +381,6 @@ export default function ClientePage() {
             d.ArtCodigo || "",
             d.DeCanti || 0,
             d.DePreUn || 0,
-            d.DeNetGr || 0,
-            d.DeImIva || 0,
-            d.DeTotal || 0,
             porcentaje / 100,
             precioUnitNetoConDto,
             d.NetoConDto || 0,
@@ -398,17 +389,14 @@ export default function ClientePage() {
           row.getCell(4).numFmt = "#,##0.00"; // Total factura
           row.getCell(8).numFmt = "#,##0"; // Cantidad
           row.getCell(9).numFmt = "#,##0.00"; // Precio Unit.
-          row.getCell(10).numFmt = "#,##0.00"; // Neto
-          row.getCell(11).numFmt = "#,##0.00"; // IVA
-          row.getCell(12).numFmt = "#,##0.00"; // Total (detalle)
-          row.getCell(13).numFmt = "0.00%"; // %Dto
-          row.getCell(14).numFmt = "#,##0.00"; // Precio Unit. Neto c/Dto
-          row.getCell(15).numFmt = "#,##0.00"; // Neto con dto
+          row.getCell(10).numFmt = "0.00%"; // %Dto
+          row.getCell(11).numFmt = "#,##0.00"; // Precio Unit. Neto c/Dto
+          row.getCell(12).numFmt = "#,##0.00"; // Neto con dto
         }
       }
     }
 
-    const widths = [18, 12, 12, 14, 10, 30, 12, 12, 14, 14, 12, 14, 10, 18, 18];
+    const widths = [18, 12, 12, 14, 10, 30, 12, 12, 14, 10, 18, 18];
     widths.forEach((w, i) => {
       ws.getColumn(i + 1).width = w;
     });
