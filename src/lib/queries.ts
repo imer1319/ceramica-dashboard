@@ -1,102 +1,100 @@
-import { getConnection } from './db'
-import { Cliente } from './types'
+import { getConnection } from "./db";
+import { Cliente } from "./types";
 
 // Interfaz para proveedores
 export interface ProveedorDB {
-  id: number
-  nombre: string
-  email: string
-  telefono: string
-  direccion: string
-  fecha_registro: Date
-  activo: boolean
-  ProNroId: number
-  ProContac?: string
-  ProOrdPag?: string
-  ProRubCon?: string
-  IvPNroId?: number
-  ZoFNroId?: number
-  ProNroCai?: string
-  ProVtoCai?: string
-  ProObser?: string
-  ProEstad?: string
-  ProFeEst?: string
-  ProUslog?: string
-  ProFeLog?: string
-  ProRubConPago?: string
-  msrepl_tran_version?: string
-  ProDocIdeVen?: string
-  ProConFis?: string
-  ProTipComAfi?: string
+  id: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  fecha_registro: Date;
+  activo: boolean;
+  ProNroId: number;
+  ProContac?: string;
+  ProOrdPag?: string;
+  ProRubCon?: string;
+  IvPNroId?: number;
+  ZoFNroId?: number;
+  ProNroCai?: string;
+  ProVtoCai?: string;
+  ProObser?: string;
+  ProEstad?: string;
+  ProFeEst?: string;
+  ProUslog?: string;
+  ProFeLog?: string;
+  ProRubConPago?: string;
+  msrepl_tran_version?: string;
+  ProDocIdeVen?: string;
+  ProConFis?: string;
+  ProTipComAfi?: string;
 }
 
 // Interfaz para clientes
 export interface ClienteDB {
-  id: number
-  nombre: string
-  email: string
-  telefono: string
-  direccion: string
-  fecha_registro: Date
-  activo: boolean
-  CliNroId: number
-  CliConta?: string
-  CliNotas?: string
-  IvCNroId?: number
-  ZoFNroId?: number
-  CliLimCr?: number
-  CliEstad?: string
-  CliFeEst?: string
-  CliUsLog?: string
-  CliFeLog?: string
-  CliPanta?: string
-  CliLprNroId?: number
-  GesNroId?: number
-  GAfNroid?: number
-  CliValida?: string
-  CliCodigo?: string
-  CliLimChe?: number
-  CliPlaChe?: string
-  CliPlaCre?: string
-  CliSucNroid?: number
-  ZoVNroId?: number
-  CliPunTipo?: string
+  id: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  fecha_registro: Date;
+  activo: boolean;
+  CliNroId: number;
+  CliConta?: string;
+  CliNotas?: string;
+  IvCNroId?: number;
+  ZoFNroId?: number;
+  CliLimCr?: number;
+  CliEstad?: string;
+  CliFeEst?: string;
+  CliUsLog?: string;
+  CliFeLog?: string;
+  CliPanta?: string;
+  CliLprNroId?: number;
+  GesNroId?: number;
+  GAfNroid?: number;
+  CliValida?: string;
+  CliCodigo?: string;
+  CliLimChe?: number;
+  CliPlaChe?: string;
+  CliPlaCre?: string;
+  CliSucNroid?: number;
+  ZoVNroId?: number;
+  CliPunTipo?: string;
 }
 
-
-
 export async function getEntidades(): Promise<Cliente[]> {
-  console.log('[DB] 🚀 Iniciando consulta de entidades...')
-  
+  console.log("[DB] 🚀 Iniciando consulta de entidades...");
+
   try {
-    const pool = await getConnection()
+    const pool = await getConnection();
     if (!pool) {
-      throw new Error('No se pudo establecer conexión con la base de datos')
+      throw new Error("No se pudo establecer conexión con la base de datos");
     }
-    console.log('[DB] 🔍 Verificando estructura de la base de datos...')
-    
+    console.log("[DB] 🔍 Verificando estructura de la base de datos...");
+
     // Primero verificar si la tabla existe y su estructura
     const tableCheck = await pool.request().query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_NAME = 'Ent_maeentidad'
-    `)
-    
+    `);
+
     // Verificar estructura de columnas si la tabla existe
     if (tableCheck.recordset.length > 0) {
-      console.log('[DB] 📋 Tabla existe. Verificando estructura...')
+      console.log("[DB] 📋 Tabla existe. Verificando estructura...");
       const columnCheck = await pool.request().query(`
         SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_NAME = 'Ent_maeentidad'
         ORDER BY ORDINAL_POSITION
-      `)
-      console.log('[DB] 📊 Estructura actual:', columnCheck.recordset)
+      `);
+      console.log("[DB] 📊 Estructura actual:", columnCheck.recordset);
     }
-    
+
     if (tableCheck.recordset.length === 0) {
-      console.log('[DB] 📋 Tabla Ent_maeentidad no existe. Creando tabla...')
-      
+      console.log("[DB] 📋 Tabla Ent_maeentidad no existe. Creando tabla...");
+
       // Crear la tabla
       await pool.request().query(`
         CREATE TABLE Ent_maeentidad (
@@ -117,13 +115,13 @@ export async function getEntidades(): Promise<Cliente[]> {
           EntTelef2 NVARCHAR(100) NULL,
           EntCodigo NVARCHAR(100) NULL
         )
-      `)
-      
-      console.log('[DB] ✅ Tabla creada exitosamente')
+      `);
+
+      console.log("[DB] ✅ Tabla creada exitosamente");
     }
-    
-    console.log('[DB] 🔍 Ejecutando consulta SQL...')
-    
+
+    console.log("[DB] 🔍 Ejecutando consulta SQL...");
+
     const result = await pool.request().query(`
       SELECT TOP 100 
         CAST(Entnroid as INT) as id,
@@ -144,55 +142,67 @@ export async function getEntidades(): Promise<Cliente[]> {
         CAST(EntCodigo as NVARCHAR(100)) as EntCodigo
       FROM Ent_maeentidad
       ORDER BY Entnroid
-    `)
-    
-    console.log(`[DB] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`)
-    console.log('[DB] 📋 Primeros registros:', result.recordset.slice(0, 3))
-    
-    return result.recordset
+    `);
+
+    console.log(
+      `[DB] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`,
+    );
+    console.log("[DB] 📋 Primeros registros:", result.recordset.slice(0, 3));
+
+    return result.recordset;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    console.error('[DB] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:', errorMessage)
-    console.error('[DB] 🔧 Revisa la configuración de conexión en .env.local')
-    console.error('[DB] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto')
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error(
+      "[DB] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:",
+      errorMessage,
+    );
+    console.error("[DB] 🔧 Revisa la configuración de conexión en .env.local");
+    console.error(
+      "[DB] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto",
+    );
+
     // NO usar datos de prueba - mostrar el error real
-    throw new Error(`Conexión SQL fallida: ${errorMessage}`)
+    throw new Error(`Conexión SQL fallida: ${errorMessage}`);
   }
 }
 
 export async function getClientes(): Promise<ClienteDB[]> {
-  console.log('[CLIENTES] 🚀 Iniciando consulta de clientes...')
-  
+  console.log("[CLIENTES] 🚀 Iniciando consulta de clientes...");
+
   try {
-    const pool = await getConnection()
+    const pool = await getConnection();
     if (!pool) {
-      throw new Error('No se pudo establecer conexión con la base de datos')
+      throw new Error("No se pudo establecer conexión con la base de datos");
     }
-    console.log('[CLIENTES] 🔍 Verificando estructura de la tabla CLIE_MAECLIENTES...')
-    
+    console.log(
+      "[CLIENTES] 🔍 Verificando estructura de la tabla CLIE_MAECLIENTES...",
+    );
+
     // Verificar si la tabla existe
     const tableCheck = await pool.request().query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_NAME = 'CLIE_MAECLIENTES'
-    `)
-    
+    `);
+
     // Verificar estructura de columnas si la tabla existe
     if (tableCheck.recordset.length > 0) {
-      console.log('[CLIENTES] 📋 Tabla existe. Verificando estructura...')
+      console.log("[CLIENTES] 📋 Tabla existe. Verificando estructura...");
       const columnCheck = await pool.request().query(`
         SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_NAME = 'CLIE_MAECLIENTES'
         ORDER BY ORDINAL_POSITION
-      `)
-      console.log('[CLIENTES] 📊 Estructura actual:', columnCheck.recordset)
+      `);
+      console.log("[CLIENTES] 📊 Estructura actual:", columnCheck.recordset);
     }
-    
+
     if (tableCheck.recordset.length === 0) {
-      console.log('[CLIENTES] 📋 Tabla CLIE_MAECLIENTES no existe. Creando tabla...')
-      
+      console.log(
+        "[CLIENTES] 📋 Tabla CLIE_MAECLIENTES no existe. Creando tabla...",
+      );
+
       // Crear la tabla con todas las columnas reales
       await pool.request().query(`
         CREATE TABLE CLIE_MAECLIENTES (
@@ -220,13 +230,13 @@ export async function getClientes(): Promise<ClienteDB[]> {
           ZoVNroId INT NULL,
           CliPunTipo NVARCHAR(50) NULL
         )
-      `)
-      
-      console.log('[CLIENTES] ✅ Tabla creada exitosamente')
+      `);
+
+      console.log("[CLIENTES] ✅ Tabla creada exitosamente");
     }
-    
-    console.log('[CLIENTES] 🔍 Ejecutando consulta SQL...')
-    
+
+    console.log("[CLIENTES] 🔍 Ejecutando consulta SQL...");
+
     const result = await pool.request().query(`
       SELECT TOP 100 
         CAST(CliNroId as INT) as id,
@@ -261,134 +271,152 @@ export async function getClientes(): Promise<ClienteDB[]> {
         ISNULL(CAST(CliPunTipo as NVARCHAR(100)), '') as CliPunTipo
       FROM CLIE_MAECLIENTES
       ORDER BY CliNroId
-    `)
-    
-    console.log(`[CLIENTES] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`)
-    console.log('[CLIENTES] 📋 Primeros registros:', result.recordset.slice(0, 3))
-    
-    return result.recordset
+    `);
+
+    console.log(
+      `[CLIENTES] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`,
+    );
+    console.log(
+      "[CLIENTES] 📋 Primeros registros:",
+      result.recordset.slice(0, 3),
+    );
+
+    return result.recordset;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    console.error('[CLIENTES] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:', errorMessage)
-    console.error('[CLIENTES] 🔧 Revisa la configuración de conexión en .env.local')
-    console.error('[CLIENTES] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto')
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error(
+      "[CLIENTES] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:",
+      errorMessage,
+    );
+    console.error(
+      "[CLIENTES] 🔧 Revisa la configuración de conexión en .env.local",
+    );
+    console.error(
+      "[CLIENTES] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto",
+    );
+
     // NO usar datos de prueba - mostrar el error real
-    throw new Error(`Conexión SQL fallida para clientes: ${errorMessage}`)
+    throw new Error(`Conexión SQL fallida para clientes: ${errorMessage}`);
   }
 }
 
 // Interfaz para datos relacionados
 export interface DatosRelacionados {
   entidad?: {
-    Entnroid: number
-    Entnombr?: string
-    Entemail?: string
-    EntRazSoc?: string
-    EntDomic?: string
-    EntLocal?: string
-    EntProvi?: string
-    EntCodPo?: string
-    EntTelef?: string
-    EntCUIT?: string
-    EntActEc?: string
-  }
+    Entnroid: number;
+    Entnombr?: string;
+    Entemail?: string;
+    EntRazSoc?: string;
+    EntDomic?: string;
+    EntLocal?: string;
+    EntProvi?: string;
+    EntCodPo?: string;
+    EntTelef?: string;
+    EntCUIT?: string;
+    EntActEc?: string;
+  };
   cliente?: {
-    CliNroId: number
-    CliConta?: string
-    CliNotas?: string
-    CliEstad?: string
-    CliCodigo?: string
-  }
+    CliNroId: number;
+    CliConta?: string;
+    CliNotas?: string;
+    CliEstad?: string;
+    CliCodigo?: string;
+  };
   proveedor?: {
-    ProNroId: number
-    ProContac?: string
-    ProObser?: string
-    ProEstad?: string
-    ProRubCon?: string
-  }
+    ProNroId: number;
+    ProContac?: string;
+    ProObser?: string;
+    ProEstad?: string;
+    ProRubCon?: string;
+  };
   deuda?: {
-    SucNroId: number
-    DeuNroId: number
-    EntNroId: number
-    DeuImpor: number
-    DeuSaldo: number
-    DeuFecha: string
-    DeuCodCom: number
-    DeuTipfa: string
-    DeuNroF1: number
-    DeuNroF2: number
-    DeudaNumero: string
-  }[]
+    SucNroId: number;
+    DeuNroId: number;
+    EntNroId: number;
+    DeuImpor: number;
+    DeuSaldo: number;
+    DeuFecha: string;
+    DeuCodCom: number;
+    DeuTipfa: string;
+    DeuNroF1: number;
+    DeuNroF2: number;
+    DeudaNumero: string;
+  }[];
   movimientos?: {
-    SucNroId: number
-    MovNroId: number
-    CtmNroId: string
-    EntNroId: number
-    MovImpor: number
-    MovFecha: string
-  }[]
+    SucNroId: number;
+    MovNroId: number;
+    CtmNroId: string;
+    EntNroId: number;
+    MovImpor: number;
+    MovFecha: string;
+  }[];
   facturas?: {
-    FactNroId: number
-    FactNumero: string
-    FactFecha: string
-    FactTipo: string
-    FactTotal: number
-    FaNetGr: number
-    FactEstado: string
-    EntNroId: number
-  }[]
+    FactNroId: number;
+    FactNumero: string;
+    FactFecha: string;
+    FactTipo: string;
+    FactTotal: number;
+    FaNetGr: number;
+    FactEstado: string;
+    EntNroId: number;
+  }[];
   movimientosCCT?: {
-    MovimCCTId: number
-    Fecha: string
-    Importe: number
-    Concepto: string
-    Estado: string
-  }[]
+    MovimCCTId: number;
+    Fecha: string;
+    Importe: number;
+    Concepto: string;
+    Estado: string;
+  }[];
   movimientosLevel1?: {
-    SucNroId: number
-    MovNroId: number
-    DeuNroId: number
-    CCCNroId?: number
-    MovImpDe?: number
-    DeuDeuNroId?: number
-    DeuSucNroId?: number
-    CCCDescr?: string
-    CCCSigno?: number
-  }[]
+    SucNroId: number;
+    MovNroId: number;
+    DeuNroId: number;
+    CCCNroId?: number;
+    MovImpDe?: number;
+    DeuDeuNroId?: number;
+    DeuSucNroId?: number;
+    CCCDescr?: string;
+    CCCSigno?: number;
+  }[];
   movimientosCombinados?: {
-    SucNroId: number
-    MovNroId: number
-    CtmNroId: string
-    EntNroId: number
-    MovImpor: number
-    MovFecha: string
-    DeuNroId?: number
-    CCCNroId?: number
-    MovImpDe?: number
-    CCCDescr?: string
-    CCCSigno?: number
-    Debe: number
-    Haber: number
-  }[]
+    SucNroId: number;
+    MovNroId: number;
+    CtmNroId: string;
+    EntNroId: number;
+    MovImpor: number;
+    MovFecha: string;
+    DeuNroId?: number;
+    CCCNroId?: number;
+    MovImpDe?: number;
+    CCCDescr?: string;
+    CCCSigno?: number;
+    Debe: number;
+    Haber: number;
+  }[];
 }
 
-// Función para obtener datos relacionados por ID
-export async function getDatosRelacionados(entidadId: number): Promise<DatosRelacionados> {
-  console.log(`[RELACIONADOS] 🔍 Buscando datos relacionados para entidad ID: ${entidadId}...`)
-  
+export async function getDatosRelacionados(
+  entidadId: number,
+  periodo?: { mes?: number; anio?: number },
+): Promise<DatosRelacionados> {
+  const mes = periodo?.mes;
+  const anio = periodo?.anio;
+  console.log(
+    `[RELACIONADOS] 🔍 Buscando datos relacionados para entidad ID: ${entidadId}...`,
+    { mes, anio },
+  );
+
   try {
-    const pool = await getConnection()
+    const pool = await getConnection();
     if (!pool) {
-      throw new Error('No se pudo establecer conexión con la base de datos')
+      throw new Error("No se pudo establecer conexión con la base de datos");
     }
-    const resultado: DatosRelacionados = {}
-    
+    const resultado: DatosRelacionados = {};
+
     // Buscar datos de la entidad principal
     try {
-      const entidadResult = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const entidadResult = await pool.request().input("id", entidadId).query(`
           SELECT TOP 1
             Entnroid,
             CAST(Entnombr as NVARCHAR(100)) as Entnombr,
@@ -403,22 +431,26 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
             CAST(EntActEc as NVARCHAR(100)) as EntActEc
           FROM ENT_MAEENTIDAD 
           WHERE Entnroid = @id
-        `)
-      
+        `);
+
       if (entidadResult.recordset.length > 0) {
-        resultado.entidad = entidadResult.recordset[0]
-        console.log(`[RELACIONADOS] ✅ Entidad encontrada para ID ${entidadId}`)
+        resultado.entidad = entidadResult.recordset[0];
+        console.log(
+          `[RELACIONADOS] ✅ Entidad encontrada para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontró entidad para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontró entidad para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
 
     // Buscar cliente con el mismo ID
     try {
-      const clienteResult = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const clienteResult = await pool.request().input("id", entidadId).query(`
           SELECT TOP 1
             CliNroId,
             CAST(CliConta as NVARCHAR(100)) as CliConta,
@@ -427,21 +459,26 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
             CAST(CliCodigo as NVARCHAR(50)) as CliCodigo
           FROM CLIE_MAECLIENTES 
           WHERE CliNroId = @id
-        `)
-      
+        `);
+
       if (clienteResult.recordset.length > 0) {
-        resultado.cliente = clienteResult.recordset[0]
-        console.log(`[RELACIONADOS] ✅ Cliente encontrado para ID ${entidadId}`)
+        resultado.cliente = clienteResult.recordset[0];
+        console.log(
+          `[RELACIONADOS] ✅ Cliente encontrado para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontró cliente para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontró cliente para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
+
     // Buscar proveedor con el mismo ID
     try {
-      const proveedorResult = await pool.request()
-        .input('id', entidadId)
+      const proveedorResult = await pool.request().input("id", entidadId)
         .query(`
           SELECT TOP 1
             ProNroId,
@@ -451,22 +488,31 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
             CAST(ProRubCon as NVARCHAR(100)) as ProRubCon
           FROM PROV_MAEPROV 
           WHERE ProNroId = @id
-        `)
-      
+        `);
+
       if (proveedorResult.recordset.length > 0) {
-        resultado.proveedor = proveedorResult.recordset[0]
-        console.log(`[RELACIONADOS] ✅ Proveedor encontrado para ID ${entidadId}`)
+        resultado.proveedor = proveedorResult.recordset[0];
+        console.log(
+          `[RELACIONADOS] ✅ Proveedor encontrado para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontró proveedor para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontró proveedor para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
+
     // Buscar deudas relacionadas con la entidad (solo clientes CLI)
     try {
-      const deudaResult = await pool.request()
-          .input('id', entidadId)
-          .query(`
+      const deudaReq = pool
+        .request()
+        .input("id", entidadId)
+        .input("mes", mes ?? null)
+        .input("anio", anio ?? null);
+      const deudaResult = await deudaReq.query(`
           SELECT TOP 10
             cd.SucNroId,
             cd.DeuNroId,
@@ -490,23 +536,34 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
           LEFT JOIN CCT_CODCCT cc WITH (NOLOCK) ON cd.DeuCodCom = cc.CCCNroId
           INNER JOIN CLIE_MAECLIENTES cli WITH (NOLOCK) ON cd.EntNroId = cli.CliNroId
           WHERE cd.EntNroId = @id
+            AND (@anio IS NULL OR YEAR(cd.DeuFecha) = @anio)
+            AND (@mes IS NULL OR @mes = 0 OR MONTH(cd.DeuFecha) = @mes)
           ORDER BY cd.DeuFecha DESC, cd.DeuNroId DESC
-        `)
-      
+        `);
+
       if (deudaResult.recordset.length > 0) {
-        resultado.deuda = deudaResult.recordset
-        console.log(`[RELACIONADOS] ✅ ${deudaResult.recordset.length} deudas de clientes encontradas para ID ${entidadId}`)
+        resultado.deuda = deudaResult.recordset;
+        console.log(
+          `[RELACIONADOS] ✅ ${deudaResult.recordset.length} deudas de clientes encontradas para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontraron deudas de clientes para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontraron deudas de clientes para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
+
     // Buscar movimientos relacionados con la entidad (solo clientes CLI)
     try {
-      const movimResult = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const movReq = pool
+        .request()
+        .input("id", entidadId)
+        .input("mes", mes ?? null)
+        .input("anio", anio ?? null);
+      const movimResult = await movReq.query(`
           SELECT TOP 5
             m.SucNroId,
             m.MovNroId,
@@ -518,23 +575,34 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
           FROM CCT_MOVIM m WITH (NOLOCK)
           INNER JOIN CLIE_MAECLIENTES cli WITH (NOLOCK) ON m.EntNroId = cli.CliNroId
           WHERE m.EntNroId = @id
+            AND (@anio IS NULL OR YEAR(m.MovFecha) = @anio)
+            AND (@mes IS NULL OR @mes = 0 OR MONTH(m.MovFecha) = @mes)
           ORDER BY m.MovFecha DESC, m.MovNroId DESC
-        `)
-      
+        `);
+
       if (movimResult.recordset.length > 0) {
-        resultado.movimientos = movimResult.recordset
-        console.log(`[RELACIONADOS] ✅ ${movimResult.recordset.length} movimientos encontrados para ID ${entidadId}`)
+        resultado.movimientos = movimResult.recordset;
+        console.log(
+          `[RELACIONADOS] ✅ ${movimResult.recordset.length} movimientos encontrados para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontraron movimientos para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontraron movimientos para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
-    // Buscar facturas relacionadas con la entidad (todas las facturas)
+
+    // Buscar facturas relacionadas con la entidad
     try {
-      const facturasResult = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const factReq = pool
+        .request()
+        .input("id", entidadId)
+        .input("mes", mes ?? null)
+        .input("anio", anio ?? null);
+      const facturasResult = await factReq.query(`
           SELECT
             ROW_NUMBER() OVER(ORDER BY vf.FaFecha DESC) as FactNroId,
             ISNULL(
@@ -557,20 +625,30 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
           FROM VEN_FACTUR vf WITH (NOLOCK)
           LEFT JOIN VEN_CODVTA vc WITH (NOLOCK) ON vf.CVeNroId = vc.CVeNroId
           WHERE vf.CliNroId = @id
+            AND (@anio IS NULL OR YEAR(vf.FaFecha) = @anio)
+            AND (@mes IS NULL OR @mes = 0 OR MONTH(vf.FaFecha) = @mes)
           ORDER BY vf.FaFecha DESC
-        `)
-      
+        `);
+
       if (facturasResult.recordset.length > 0) {
-        resultado.facturas = facturasResult.recordset
-        console.log(`[RELACIONADOS] ✅ ${facturasResult.recordset.length} facturas encontradas para ID ${entidadId}`)
+        resultado.facturas = facturasResult.recordset;
+        console.log(
+          `[RELACIONADOS] ✅ ${facturasResult.recordset.length} facturas encontradas para ID ${entidadId}`,
+        );
       } else {
-        console.log(`[RELACIONADOS] ⚠️ No se encontraron facturas para ID ${entidadId}`)
+        console.log(
+          `[RELACIONADOS] ⚠️ No se encontraron facturas para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ Error al buscar facturas para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ Error al buscar facturas para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
+
     // Nota: CCT_MOVIMCCT no existe en la base de datos actual
     // Se comenta esta sección hasta que se confirme la estructura correcta
     /*
@@ -599,12 +677,15 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
       console.log(`[RELACIONADOS] ⚠️ No se encontraron movimientos CCT para ID ${entidadId}:`, errorMessage)
     }
     */
-    
+
     // Buscar movimientos Level1 relacionados con la entidad (optimizado con índices)
     try {
-      const movimLevel1Result = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const lvlReq = pool
+        .request()
+        .input("id", entidadId)
+        .input("mes", mes ?? null)
+        .input("anio", anio ?? null);
+      const movimLevel1Result = await lvlReq.query(`
           SELECT TOP 3
             ml.SucNroId,
             ml.MovNroId,
@@ -620,26 +701,37 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
             SELECT TOP 3 MovNroId 
             FROM CCT_MOVIM WITH (NOLOCK)
             WHERE EntNroId = @id
+              AND (@anio IS NULL OR YEAR(MovFecha) = @anio)
+              AND (@mes IS NULL OR @mes = 0 OR MONTH(MovFecha) = @mes)
             ORDER BY MovFecha DESC, MovNroId DESC
           ) m ON ml.MovNroId = m.MovNroId
           LEFT JOIN CCT_CODCCT cc WITH (NOLOCK) ON ml.CCCNroId = cc.CCCNroId
           ORDER BY ml.MovNroId DESC
-        `)
-      
+        `);
+
       if (movimLevel1Result.recordset.length > 0) {
-        resultado.movimientosLevel1 = movimLevel1Result.recordset
-        console.log(`[RELACIONADOS] ✅ ${movimLevel1Result.recordset.length} movimientos Level1 encontrados para ID ${entidadId}`)
+        resultado.movimientosLevel1 = movimLevel1Result.recordset;
+        console.log(
+          `[RELACIONADOS] ✅ ${movimLevel1Result.recordset.length} movimientos Level1 encontrados para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontraron movimientos Level1 para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontraron movimientos Level1 para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
 
     // Buscar movimientos combinados (regulares + Level1) con columnas Debe y Haber (máxima optimización)
     try {
-      const movimCombinadosResult = await pool.request()
-        .input('id', entidadId)
-        .query(`
+      const combReq = pool
+        .request()
+        .input("id", entidadId)
+        .input("mes", mes ?? null)
+        .input("anio", anio ?? null);
+      const movimCombinadosResult = await combReq.query(`
           SELECT TOP 3
             m.SucNroId,
             m.MovNroId,
@@ -665,63 +757,78 @@ export async function getDatosRelacionados(entidadId: number): Promise<DatosRela
             FROM CCT_MOVIM m WITH (NOLOCK)
             INNER JOIN CLIE_MAECLIENTES cli WITH (NOLOCK) ON m.EntNroId = cli.CliNroId
             WHERE m.EntNroId = @id
+              AND (@anio IS NULL OR YEAR(m.MovFecha) = @anio)
+              AND (@mes IS NULL OR @mes = 0 OR MONTH(m.MovFecha) = @mes)
             ORDER BY m.MovFecha DESC, m.MovNroId DESC
           ) m
           LEFT JOIN CCT_MOVIMCCT_MOVIMLEVEL1 ml WITH (NOLOCK) ON m.MovNroId = ml.MovNroId
           LEFT JOIN CCT_CODCCT cc WITH (NOLOCK) ON ml.CCCNroId = cc.CCCNroId
           ORDER BY m.MovFecha DESC, m.MovNroId DESC
-        `)
-      
+        `);
+
       if (movimCombinadosResult.recordset.length > 0) {
-        resultado.movimientosCombinados = movimCombinadosResult.recordset
-        console.log(`[RELACIONADOS] ✅ ${movimCombinadosResult.recordset.length} movimientos combinados encontrados para ID ${entidadId}`)
+        resultado.movimientosCombinados = movimCombinadosResult.recordset;
+        console.log(
+          `[RELACIONADOS] ✅ ${movimCombinadosResult.recordset.length} movimientos combinados encontrados para ID ${entidadId}`,
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      console.log(`[RELACIONADOS] ⚠️ No se encontraron movimientos combinados para ID ${entidadId}:`, errorMessage)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      console.log(
+        `[RELACIONADOS] ⚠️ No se encontraron movimientos combinados para ID ${entidadId}:`,
+        errorMessage,
+      );
     }
-    
-    return resultado
-    
+
+    return resultado;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    console.error(`[RELACIONADOS] ❌ Error al buscar datos relacionados para ID ${entidadId}:`, errorMessage)
-    return {}
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error(
+      `[RELACIONADOS] ❌ Error al buscar datos relacionados para ID ${entidadId}:`,
+      errorMessage,
+    );
+    return {};
   }
 }
 
 export async function getProveedores(): Promise<ProveedorDB[]> {
-  console.log('[PROVEEDORES] 🚀 Iniciando consulta de proveedores...')
-  
+  console.log("[PROVEEDORES] 🚀 Iniciando consulta de proveedores...");
+
   try {
-    const pool = await getConnection()
+    const pool = await getConnection();
     if (!pool) {
-      throw new Error('No se pudo establecer conexión con la base de datos')
+      throw new Error("No se pudo establecer conexión con la base de datos");
     }
-    console.log('[PROVEEDORES] 🔍 Verificando estructura de la tabla PROV_MAEPROV...')
-    
+    console.log(
+      "[PROVEEDORES] 🔍 Verificando estructura de la tabla PROV_MAEPROV...",
+    );
+
     // Verificar si la tabla existe
     const tableCheck = await pool.request().query(`
       SELECT TABLE_NAME 
       FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_NAME = 'PROV_MAEPROV'
-    `)
-    
+    `);
+
     // Verificar estructura de columnas si la tabla existe
     if (tableCheck.recordset.length > 0) {
-      console.log('[PROVEEDORES] 📋 Tabla existe. Verificando estructura...')
+      console.log("[PROVEEDORES] 📋 Tabla existe. Verificando estructura...");
       const columnCheck = await pool.request().query(`
         SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_NAME = 'PROV_MAEPROV'
         ORDER BY ORDINAL_POSITION
-      `)
-      console.log('[PROVEEDORES] 📊 Estructura actual:', columnCheck.recordset)
+      `);
+      console.log("[PROVEEDORES] 📊 Estructura actual:", columnCheck.recordset);
     }
-    
+
     if (tableCheck.recordset.length === 0) {
-      console.log('[PROVEEDORES] 📋 Tabla PROV_MAEPROV no existe. Creando tabla...')
-      
+      console.log(
+        "[PROVEEDORES] 📋 Tabla PROV_MAEPROV no existe. Creando tabla...",
+      );
+
       // Crear la tabla con todas las columnas reales
       await pool.request().query(`
         CREATE TABLE PROV_MAEPROV (
@@ -744,13 +851,13 @@ export async function getProveedores(): Promise<ProveedorDB[]> {
           ProConFis NVARCHAR(100) NULL,
           ProTipComAfi NVARCHAR(100) NULL
         )
-      `)
-      
-      console.log('[PROVEEDORES] ✅ Tabla creada exitosamente')
+      `);
+
+      console.log("[PROVEEDORES] ✅ Tabla creada exitosamente");
     }
-    
-    console.log('[PROVEEDORES] 🔍 Ejecutando consulta SQL...')
-    
+
+    console.log("[PROVEEDORES] 🔍 Ejecutando consulta SQL...");
+
     const result = await pool.request().query(`
       SELECT TOP 100 
         CAST(ProNroId as INT) as id,
@@ -780,20 +887,33 @@ export async function getProveedores(): Promise<ProveedorDB[]> {
         ISNULL(CAST(ProTipComAfi as NVARCHAR(100)), '') as ProTipComAfi
       FROM PROV_MAEPROV
       ORDER BY ProNroId
-    `)
-    
-    console.log(`[PROVEEDORES] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`)
-    console.log('[PROVEEDORES] 📋 Primeros registros:', result.recordset.slice(0, 3))
-    
-    return result.recordset
+    `);
+
+    console.log(
+      `[PROVEEDORES] ✅ Consulta exitosa: ${result.recordset.length} registros obtenidos`,
+    );
+    console.log(
+      "[PROVEEDORES] 📋 Primeros registros:",
+      result.recordset.slice(0, 3),
+    );
+
+    return result.recordset;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    console.error('[PROVEEDORES] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:', errorMessage)
-    console.error('[PROVEEDORES] 🔧 Revisa la configuración de conexión en .env.local')
-    console.error('[PROVEEDORES] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto')
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error(
+      "[PROVEEDORES] ❌ ERROR CRÍTICO - No se pudo conectar a SQL Server:",
+      errorMessage,
+    );
+    console.error(
+      "[PROVEEDORES] 🔧 Revisa la configuración de conexión en .env.local",
+    );
+    console.error(
+      "[PROVEEDORES] 💡 Opciones: 1) Configurar servidor local, 2) Verificar servidor remoto",
+    );
+
     // NO usar datos de prueba - mostrar el error real
-    throw new Error(`Conexión SQL fallida para proveedores: ${errorMessage}`)
+    throw new Error(`Conexión SQL fallida para proveedores: ${errorMessage}`);
   }
 }
 
@@ -801,66 +921,72 @@ export async function getProveedores(): Promise<ProveedorDB[]> {
 // Interfaces para las tablas de detalle de factura
 export interface DetalleFacturaDB {
   // Datos de la factura (VEN_FACTUR)
-  CliNroId: number
-  FaNroF1: number
-  FaTipFa: string
-  FaNroF2: number
-  CVeNroId: number
-  FaNombr?: string
-  FaDomic?: string
-  FaLocal?: string
-  FaTipIva?: string
-  FaCuit?: string
-  FaTotal?: number
-  FaNetGr?: number
-  FaDesct?: number
+  CliNroId: number;
+  FaNroF1: number;
+  FaTipFa: string;
+  FaNroF2: number;
+  CVeNroId: number;
+  FaNombr?: string;
+  FaDomic?: string;
+  FaLocal?: string;
+  FaTipIva?: string;
+  FaCuit?: string;
+  FaTotal?: number;
+  FaNetGr?: number;
+  FaDesct?: number;
 
-  
   // Datos del tipo de factura (VEN_CODVTA)
-  CVeDescr?: string
-  CVeSigno?: number
-  
+  CVeDescr?: string;
+  CVeSigno?: number;
+
   // Datos del detalle (VEN_FACTUR1)
   // CVeNroId: number
   // FaTipFa: string
   // FaNroF1: number
   // FaNroF2: number
-  DeNroId: number
-  ArtNroId: number
-  DeCanti: number
-  DePreUn: number
-  DeNetGr: number
-  DeImIva: number
-  DeTotal: number
-  DeArtDescr?: string
-  DePorDes?: number
-  
-  // Campos calculados
-  NetoGravado?: number
-  NetoConDto?: number
+  DeNroId: number;
+  ArtNroId: number;
+  DeCanti: number;
+  DePreUn: number;
+  DeNetGr: number;
+  DeImIva: number;
+  DeTotal: number;
+  DeArtDescr?: string;
+  DePorDes?: number;
 
-  
+  // Campos calculados
+  NetoGravado?: number;
+  NetoConDto?: number;
+
   // Datos del artículo (ART_ARTICU)
-  ArtDescr?: string
-  ArtCodigo?: string
-  ArtBarra?: string
+  ArtDescr?: string;
+  ArtCodigo?: string;
+  ArtBarra?: string;
 }
 
 // TODO: Implementar función para crear/configurar tablas de detalle de factura
 
 // Función para obtener detalles de una factura específica
-export async function obtenerDetalleFactura(facturaKeys: {CVeNroId: number, FaTipFa: string, FaNroF1: number, FaNroF2: number}): Promise<DetalleFacturaDB[]> {
-  console.log(`[DETALLE_FACTURA] 🔍 Obteniendo detalle para factura:`, facturaKeys)
-  
+export async function obtenerDetalleFactura(facturaKeys: {
+  CVeNroId: number;
+  FaTipFa: string;
+  FaNroF1: number;
+  FaNroF2: number;
+}): Promise<DetalleFacturaDB[]> {
+  console.log(
+    `[DETALLE_FACTURA] 🔍 Obteniendo detalle para factura:`,
+    facturaKeys,
+  );
+
   try {
-    const pool = await getConnection()
+    const pool = await getConnection();
     if (!pool) {
-      throw new Error('No se pudo establecer conexión con la base de datos')
+      throw new Error("No se pudo establecer conexión con la base de datos");
     }
 
-    console.log('[DETALLE_FACTURA] 📊 Consultando detalles de factura')
-    console.log(`[DETALLE_FACTURA] 🔍 Claves de factura:`, facturaKeys)
-    
+    console.log("[DETALLE_FACTURA] 📊 Consultando detalles de factura");
+    console.log(`[DETALLE_FACTURA] 🔍 Claves de factura:`, facturaKeys);
+
     const query = `
       SELECT 
         -- Datos de la factura (VEN_FACTUR)
@@ -909,20 +1035,24 @@ export async function obtenerDetalleFactura(facturaKeys: {CVeNroId: number, FaTi
       LEFT JOIN ART_ARTICU art ON vf1.ArtNroId = art.ArtNroId
       WHERE vf.CVeNroId = @cveNroId AND vf.FaTipFa = @faTipFa AND vf.FaNroF1 = @faNroF1 AND vf.FaNroF2 = @faNroF2
       ORDER BY vf1.DeNroId
-    `
-    
-    const result = await pool.request()
-      .input('cveNroId', facturaKeys.CVeNroId)
-      .input('faTipFa', facturaKeys.FaTipFa)
-      .input('faNroF1', facturaKeys.FaNroF1)
-      .input('faNroF2', facturaKeys.FaNroF2)
-      .query(query)
-    
-    console.log(`[DETALLE_FACTURA] ✅ ${result.recordset.length} detalles encontrados`)
-    return result.recordset as DetalleFacturaDB[]
+    `;
+
+    const result = await pool
+      .request()
+      .input("cveNroId", facturaKeys.CVeNroId)
+      .input("faTipFa", facturaKeys.FaTipFa)
+      .input("faNroF1", facturaKeys.FaNroF1)
+      .input("faNroF2", facturaKeys.FaNroF2)
+      .query(query);
+
+    console.log(
+      `[DETALLE_FACTURA] ✅ ${result.recordset.length} detalles encontrados`,
+    );
+    return result.recordset as DetalleFacturaDB[];
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    console.error('[DETALLE_FACTURA] ❌ Error:', errorMessage)
-    throw error
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
+    console.error("[DETALLE_FACTURA] ❌ Error:", errorMessage);
+    throw error;
   }
 }
